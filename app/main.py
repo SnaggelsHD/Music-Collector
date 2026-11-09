@@ -37,8 +37,11 @@ app = FastAPI(title="Music Collector", lifespan=lifespan)
 @app.get("/api/status")
 def status():
     snap = stats.snapshot()
+    with db.conn() as c:
+        libs = [dict(r) for r in c.execute(
+            "SELECT library AS name, COUNT(*) AS files FROM files GROUP BY library ORDER BY library COLLATE NOCASE")]
     return {"job": jobs.state, "files": snap["files"], "unmatched": snap["unmatched"],
-            "artists": len(snap["artists"]), "music_dir": str(config.MUSIC_DIR)}
+            "artists": len(snap["artists"]), "music_dir": str(config.MUSIC_DIR), "libraries": libs}
 
 
 @app.post("/api/scan")
@@ -66,28 +69,30 @@ def put_settings(body: dict):
 
 
 @app.get("/api/artists")
-def artists():
-    return list(stats.snapshot()["artists"].values())
+def artists(library: str | None = None):
+    return list(stats.snapshot(library or None)["artists"].values())
 
 
-def _artist_or_404(mbid):
-    a = stats.snapshot()["artists"].get(mbid)
+def _artist_or_404(mbid, library=None):
+    a = stats.snapshot(library)["artists"].get(mbid)
     if not a:
         raise HTTPException(404, "Artist not in library")
     return a
 
 
 @app.get("/api/artists/{mbid}")
-def artist(mbid: str):
-    snap = stats.snapshot()
-    a = _artist_or_404(mbid)
+def artist(mbid: str, library: str | None = None):
+    library = library or None
+    snap = stats.snapshot(library)
+    a = _artist_or_404(mbid, library)
     albums = sorted(snap["per_artist"].get(mbid, []), key=lambda s: s["date"] or "", reverse=True)
     return {**a, "albums": albums}
 
 
 @app.get("/api/albums/{artist_mbid}/{rg_mbid}")
-def album(artist_mbid: str, rg_mbid: str):
-    snap = stats.snapshot()
+def album(artist_mbid: str, rg_mbid: str, library: str | None = None):
+    library = library or None
+    snap = stats.snapshot(library)
     s = snap["rg"].get((artist_mbid, rg_mbid))
     if not s:
         raise HTTPException(404, "Unknown album")
@@ -98,13 +103,14 @@ def album(artist_mbid: str, rg_mbid: str):
     with db.conn() as c:
         files = [dict(r) for r in c.execute(
             """SELECT path, title, codec, bitrate, duration, track_no, disc_no, recording_mbid, track_mbid
-               FROM files WHERE rg_mbid = ? AND artist_mbid = ?""", (rg_mbid, artist_mbid))]
+               FROM files WHERE rg_mbid = ? AND artist_mbid = ?""" + (" AND library = ?" if library else ""),
+            (rg_mbid, artist_mbid) + ((library,) if library else ()))]
         st = c.execute("SELECT * FROM rg_state WHERE rg_mbid = ?", (rg_mbid,)).fetchone()
         tracks = [dict(r) for r in c.execute(
             "SELECT * FROM tracks WHERE release_mbid = ? ORDER BY disc, position",
             (st["release_mbid"] if st else None,))]
     rows, extra = stats.match_tracks(tracks, files)
-    s = stats.snapshot()["rg"].get((artist_mbid, rg_mbid), s)
+    s = stats.snapshot(library)["rg"].get((artist_mbid, rg_mbid), s)
     return {**s, "release_mbid": st["release_mbid"] if st else None,
             "tracks": [{"disc": r["disc"], "position": r["position"], "title": r["title"],
                         "length_ms": r["length_ms"], "owned": bool(r["file"]),

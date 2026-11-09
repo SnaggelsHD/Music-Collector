@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS files (
     title TEXT, album TEXT, artist TEXT, albumartist TEXT,
     track_no INTEGER, disc_no INTEGER,
     artist_mbid TEXT,          -- library artist (album artist, falls back to track artist)
-    rg_mbid TEXT, release_mbid TEXT, recording_mbid TEXT, track_mbid TEXT
+    rg_mbid TEXT, release_mbid TEXT, recording_mbid TEXT, track_mbid TEXT,
+    library TEXT               -- first folder below the music root
 );
 CREATE INDEX IF NOT EXISTS idx_files_artist ON files(artist_mbid);
 CREATE INDEX IF NOT EXISTS idx_files_rg ON files(rg_mbid);
@@ -77,6 +78,12 @@ def init():
     config.COVER_DIR.mkdir(parents=True, exist_ok=True)
     with conn() as c:
         c.executescript(SCHEMA)
+        cols = [r["name"] for r in c.execute("PRAGMA table_info(files)")]
+        if "library" not in cols:  # migrate databases created before multi-library support
+            c.execute("ALTER TABLE files ADD COLUMN library TEXT")
+            c.execute("UPDATE files SET library = CASE WHEN instr(path, '/') > 0 "
+                      "THEN substr(path, 1, instr(path, '/') - 1) ELSE '(root)' END")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_files_library ON files(library)")
 
 
 def get_settings() -> dict:

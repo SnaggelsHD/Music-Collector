@@ -12,6 +12,10 @@ a { color: inherit; text-decoration: none; }
 .brand { padding: 18px 16px; font-weight: 700; font-size: 16px; border-bottom: 1px solid var(--border); }
 nav a { display: block; padding: 12px 16px; color: var(--muted); border-left: 3px solid transparent; }
 nav a:hover, nav a.active { color: #fff; background: var(--panel); border-left-color: var(--accent); }
+#libraries { padding: 8px 0; border-top: 1px solid var(--border); margin-top: 8px; }
+#libraries .small { padding: 4px 16px; text-transform: uppercase; letter-spacing: .05em; font-size: 11px; }
+#libraries a { display: flex; justify-content: space-between; padding: 7px 16px; color: var(--muted); border-left: 3px solid transparent; }
+#libraries a:hover, #libraries a.active { color: #fff; background: var(--panel); border-left-color: var(--accent); }
 #status { margin-top: auto; padding: 12px 16px; font-size: 12px; color: var(--muted); }
 #status .bar { margin: 6px 0; }
 main { flex: 1; min-width: 0; }

@@ -1,0 +1,19 @@
+# Compose file for a NAS where the libraries live in subfolders of /volume4/Music, e.g.
+#   /volume4/Music/Rock, /volume4/Music/Jazz, ...
+# Every folder directly below /music is shown as its own library in the sidebar.
+services:
+  music-collector:
+    image: ghcr.io/snaggelshd/music-collector:latest
+    container_name: music-collector
+    restart: unless-stopped
+    ports:
+      - "8686:8080"            # http://<nas-ip>:8686
+    environment:
+      MB_CONTACT: "snaggels777@icloud.com"   # sent to MusicBrainz in the User-Agent
+      TZ: "Europe/Amsterdam"
+      SCAN_ON_START: "true"
+      SCAN_INTERVAL_HOURS: "24"
+      REFRESH_DAYS: "30"
+    volumes:
+      - /volume4/Music:/music:ro
+      - ./config:/config       # database + cover cache (created next to this file)

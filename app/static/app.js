@@ -1,15 +1,18 @@
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const api = async (path, opts) => {
-  const r = await fetch("/api" + path, opts);
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
-  return r.json();
-};
 const store = {
   get: (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 
+const api = async (path, opts) => {
+  const lib = store.get("library", "");
+  if (lib && /^\/(artists|albums)(\/|\?|$)/.test(path) && !(opts && opts.method === "POST"))
+    path += (path.includes("?") ? "&" : "?") + "library=" + encodeURIComponent(lib);
+  const r = await fetch("/api" + path, opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+};
 const PRIMARY_ORDER = ["Album", "EP", "Single", "Broadcast", "Other"];
 const SECONDARY = ["Studio", "Compilation", "Soundtrack", "Spokenword", "Interview", "Audiobook", "Audio drama",
   "Live", "Remix", "DJ-mix", "Mixtape/Street", "Demo", "Field recording"];
@@ -35,6 +38,7 @@ async function pollStatus() {
   const j = s.job;
   const busy = j.running;
   const pct = j.total ? Math.round((100 * j.done) / j.total) : 0;
+  renderLibraries(s.libraries);
   $("#status").innerHTML = `
     <div>${s.artists} artists · ${s.files} files${s.unmatched ? ` · ${s.unmatched} untagged` : ""}</div>
     ${busy ? `<div class="bar"><i style="width:${pct}%"></i><span>${pct}%</span></div><div>${esc(j.phase)}: ${esc(j.message)}</div>` : ""}
@@ -50,6 +54,29 @@ async function pollStatus() {
 async function startScan(full) {
   await api("/scan?full=" + !!full, { method: "POST" });
   pollStatus();
+}
+
+/* ---------- libraries ---------- */
+let libSig = "";
+function renderLibraries(libs) {
+  const cur = store.get("library", "");
+  const sig = JSON.stringify(libs) + cur;
+  if (sig === libSig) return;
+  libSig = sig;
+  const box = $("#libraries");
+  if (libs.length < 2) { box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="small">Libraries</div>` +
+    [{ name: "", label: "All libraries", files: libs.reduce((n, l) => n + l.files, 0) },
+     ...libs.map((l) => ({ ...l, label: l.name }))].map((l) =>
+      `<a href="#" data-lib="${esc(l.name)}" class="${l.name === cur ? "active" : ""}">${esc(l.label)} <span class="small">${l.files}</span></a>`).join("");
+  box.querySelectorAll("a").forEach((a) => (a.onclick = (e) => {
+    e.preventDefault();
+    store.set("library", a.dataset.lib);
+    libSig = "";
+    renderLibraries(libs);
+    location.hash = "#/";
+    route();
+  }));
 }
 
 /* ---------- library ---------- */

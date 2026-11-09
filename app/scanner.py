@@ -141,6 +141,11 @@ def iter_audio_files(root: Path):
                 yield Path(dirpath) / fn
 
 
+def library_of(rel: str) -> str:
+    """Each folder directly below the music root is its own library."""
+    return rel.split("/", 1)[0] if "/" in rel else "(root)"
+
+
 def scan(progress: dict) -> None:
     """Incremental scan. `progress` is a dict updated for the UI."""
     root = config.MUSIC_DIR
@@ -174,7 +179,7 @@ def scan(progress: dict) -> None:
                 rec["title"], rec["album"], rec["artist"], rec["albumartist"],
                 _int(rec["track"]), _int(rec["disc"]),
                 rec["lib_artist_mbid"], rec["rg_mbid"], rec["release_mbid"],
-                rec["recording_mbid"], rec["track_mbid"], rec["lib_artist_name"],
+                rec["recording_mbid"], rec["track_mbid"], rec["lib_artist_name"], library_of(rel),
             ))
         progress["done"] = i
         if len(batch) >= 200 or i == len(todo):
@@ -196,8 +201,8 @@ def _flush(batch):
             c.execute(
                 """INSERT OR REPLACE INTO files
                    (path, mtime, size, codec, bitrate, duration, title, album, artist, albumartist,
-                    track_no, disc_no, artist_mbid, rg_mbid, release_mbid, recording_mbid, track_mbid)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", row[:17])
+                    track_no, disc_no, artist_mbid, rg_mbid, release_mbid, recording_mbid, track_mbid, library)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", row[:17] + (row[18],))
             # remember the artist name for artists we never get from MusicBrainz
             if row[12] and row[17]:
                 c.execute("INSERT OR IGNORE INTO artists (mbid, name, sort_name) VALUES (?,?,?)",

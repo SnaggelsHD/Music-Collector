@@ -37,6 +37,13 @@ starts automatically.
 
 `/config` holds the SQLite database and the cover cache; mount it to keep data across restarts.
 
+## Multiple libraries
+
+Every folder directly below `/music` is treated as a separate library. Mount your parent folder (e.g.
+`/volume4/Music:/music:ro`) or several volumes (`/a:/music/A:ro`, `/b:/music/B:ro`) and pick a library in the
+sidebar — or "All libraries" for the combined view. Completion is calculated per selected library. See
+`docker-compose.nas.yml` for a Synology-style example.
+
 ## How it works
 
 1. **Scan** – walks `/music`, reads tags with mutagen (MP3, FLAC, M4A, Ogg/Opus, WMA, APE, …). Only new/changed

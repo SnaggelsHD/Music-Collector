@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from . import db, sync
 
-_cache = {"version": -1, "data": None}
+_cache = {"version": -1, "data": {}}
 _lock = threading.Lock()
 
 
@@ -36,14 +36,15 @@ def match_tracks(tracks, files):
     return rows, extra
 
 
-def _build():
+def _build(library=None):
     settings = db.get_settings()
     with db.conn() as c:
         artists = {r["mbid"]: dict(r) for r in c.execute("SELECT * FROM artists")}
         rgs = [dict(r) for r in c.execute("SELECT * FROM release_groups")]
         state = {r["rg_mbid"]: dict(r) for r in c.execute("SELECT * FROM rg_state")}
         files = [dict(r) for r in c.execute(
-            "SELECT path, title, artist_mbid, rg_mbid, release_mbid, recording_mbid, track_mbid FROM files")]
+            "SELECT path, title, artist_mbid, rg_mbid, release_mbid, recording_mbid, track_mbid FROM files"
+            + (" WHERE library = ?" if library else ""), (library,) if library else ())]
         trk = defaultdict(list)
         for r in c.execute("SELECT * FROM tracks ORDER BY disc, position"):
             trk[r["release_mbid"]].append(dict(r))
@@ -107,10 +108,12 @@ def _build():
             "unmatched": unmatched, "files": len(files)}
 
 
-def snapshot():
+def snapshot(library=None):
+    """Stats for one library (or all of them when library is None)."""
     with _lock:
         v = db.data_version()
-        if _cache["version"] != v or _cache["data"] is None:
-            _cache["data"] = _build()
-            _cache["version"] = v
-        return _cache["data"]
+        if _cache["version"] != v:
+            _cache.update(version=v, data={})
+        if library not in _cache["data"]:
+            _cache["data"][library] = _build(library)
+        return _cache["data"][library]
