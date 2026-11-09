@@ -5,15 +5,28 @@ your music collection. It reads the MusicBrainz tags written by [Picard](https:/
 files (no particular folder structure needed), fetches each artist's discography from MusicBrainz, and shows a
 completion percentage per artist and per album, with covers and track lists.
 
+[![Docker image](https://github.com/SnaggelsHD/Music-Collector/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/SnaggelsHD/Music-Collector/actions/workflows/docker-publish.yml)
+
 ## Run it
 
-Edit `docker-compose.yml` (point the `/music` volume at your NAS share, set `MB_CONTACT`), then:
+A prebuilt multi-arch image (amd64 + arm64) is published to GitHub Container Registry:
 
 ```bash
-docker compose up -d --build
+docker run -d --name music-collector -p 8080:8080 \
+  -e MB_CONTACT="you@example.com" \
+  -v /path/to/your/music:/music:ro \
+  -v ./config:/config \
+  ghcr.io/snaggelshd/music-collector:latest
 ```
 
-Open http://localhost:8080. The first scan starts automatically.
+Or with Compose: edit `docker-compose.yml` (point the `/music` volume at your NAS share, set `MB_CONTACT`), then:
+
+```bash
+docker compose up -d
+```
+
+(Use `docker compose up -d --build` to build from source instead.) Open http://localhost:8080. The first scan
+starts automatically.
 
 | Env var | Default | Meaning |
 |---|---|---|

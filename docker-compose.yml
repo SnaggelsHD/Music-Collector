@@ -1,6 +1,7 @@
 services:
   music-collector:
-    build: .
+    image: ghcr.io/snaggelshd/music-collector:latest
+    # build: .   # uncomment to build from source instead
     container_name: music-collector
     restart: unless-stopped
     ports:
