@@ -1,0 +1,16 @@
+services:
+  music-collector:
+    build: .
+    container_name: music-collector
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Contact info for the MusicBrainz User-Agent (they ask for it) - put your email or repo URL
+      MB_CONTACT: "you@example.com"
+      SCAN_ON_START: "true"
+      SCAN_INTERVAL_HOURS: "0"   # e.g. 24 for a daily rescan
+      REFRESH_DAYS: "30"         # re-fetch artist metadata after this many days
+    volumes:
+      - /path/to/your/music:/music:ro   # your NAS music share (read-only is fine)
+      - ./config:/config                # database + cover cache
